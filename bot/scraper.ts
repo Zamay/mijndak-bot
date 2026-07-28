@@ -35,12 +35,12 @@ export class MijnDakScraper {
     await this.page.goto('https://amsterdam.mijndak.nl/Inloggen', { waitUntil: 'networkidle' });
     
     // Check if we need to login by looking for the username field
-    await this.page.waitForSelector('input[name="UserName"]', { timeout: 10000 }).catch(() => {});
-    const usernameInput = this.page.locator('input[name="UserName"]');
+    await this.page.waitForSelector('input[id="Input_UsernameVal"]', { timeout: 10000 }).catch(() => {});
+    const usernameInput = this.page.locator('input[id="Input_UsernameVal"]');
     if (await usernameInput.count() > 0) {
       console.log('Logging in...');
-      await this.page.fill('input[name="UserName"]', process.env.MIJNDAK_USERNAME || '', { force: true });
-      await this.page.fill('input[name="Password"]', process.env.MIJNDAK_PASSWORD || '', { force: true });
+      await this.page.fill('input[id="Input_UsernameVal"]', process.env.MIJNDAK_USERNAME || '', { force: true });
+      await this.page.fill('input[id="Input_PasswordVal"]', process.env.MIJNDAK_PASSWORD || '', { force: true });
       
       // Try to accept cookies
       try {
@@ -56,7 +56,7 @@ export class MijnDakScraper {
         }
       } catch (e) {}
 
-      const submitBtn = this.page.locator('button:has-text("Inloggen")').first();
+      const submitBtn = this.page.locator('button[type="submit"]').first();
       await submitBtn.click({ force: true });
       
       await this.page.waitForTimeout(5000);
