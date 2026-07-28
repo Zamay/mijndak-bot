@@ -41,28 +41,31 @@ export class MijnDakScraper {
       await loginButton.click();
       
       await this.page.waitForSelector('input[name="UserName"]');
-      await this.page.fill('input[name="UserName"]', process.env.MIJNDAK_USERNAME || '');
-      await this.page.fill('input[name="Password"]', process.env.MIJNDAK_PASSWORD || '');
+      await this.page.fill('input[name="UserName"]', process.env.MIJNDAK_USERNAME || '', { force: true });
+      await this.page.fill('input[name="Password"]', process.env.MIJNDAK_PASSWORD || '', { force: true });
       
-      // Accept cookies if present
-      const cookieBtn = this.page.locator('button:has-text("Accepteren")').first();
-      if (await cookieBtn.count() > 0) {
-        await cookieBtn.click();
-      }
+      // Try to accept cookies
+      try {
+        await this.page.click('button:has-text("ALLES ACCEPTEREN"), button:has-text("Accepteren")', { force: true, timeout: 2000 });
+      } catch (e) {}
 
-      // Close fake-mail popup if present
-      const kruisjeBtn = this.page.locator('use[href*="icon-kruisje"]').first();
-      if (await kruisjeBtn.count() > 0) {
-        await kruisjeBtn.click({ force: true });
-      }
+      // Try to close any popups using ESC key or clicking close icons
+      await this.page.keyboard.press('Escape');
+      try {
+        const svgs = this.page.locator('svg, button[aria-label="Sluiten"]');
+        for (let i = 0; i < await svgs.count(); i++) {
+          await svgs.nth(i).click({ force: true, timeout: 500 }).catch(() => {});
+        }
+      } catch (e) {}
 
       const submitBtn = this.page.locator('button:has-text("Inloggen")').first();
-      await submitBtn.click();
+      await submitBtn.click({ force: true });
       
       await this.page.waitForTimeout(5000);
       console.log('Login completed. Current URL:', this.page.url());
     } else {
-      console.log('Login button not found. Assuming already logged in or unexpected page state.');
+      await this.page.screenshot({ path: 'debug_login.png', fullPage: true });
+      console.log('Login button not found. Saved screenshot to debug_login.png.');
     }
   }
 
