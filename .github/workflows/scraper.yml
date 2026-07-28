@@ -1,0 +1,42 @@
+name: MijnDak Bot Scraper
+
+on:
+  schedule:
+    # Run every 2 hours
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './bot/package-lock.json'
+          
+      - name: Install dependencies
+        working-directory: ./bot
+        run: npm ci || npm install
+
+      - name: Install Playwright Browsers
+        working-directory: ./bot
+        run: npx playwright install --with-deps chromium
+
+      - name: Inject Firebase Credentials
+        working-directory: ./bot
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > serviceAccountKey.json
+
+      - name: Run Scraper
+        working-directory: ./bot
+        env:
+          MIJNDAK_USERNAME: ${{ secrets.MIJNDAK_USERNAME }}
+          MIJNDAK_PASSWORD: ${{ secrets.MIJNDAK_PASSWORD }}
+        run: npx tsx index.ts
