@@ -21,13 +21,13 @@ export default async function DashboardPage() {
   const apartmentsSnapshot = await db.collection('apartments').orderBy('discoveryTime', 'desc').limit(20).get();
   const applicationsSnapshot = await db.collection('applications').orderBy('updatedAt', 'desc').get();
 
-  const apartments = apartmentsSnapshot.docs.map(doc => ({
+  const apartments: any[] = apartmentsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     discoveryTime: doc.data().discoveryTime?.toDate()?.toISOString() || new Date().toISOString()
   }));
 
-  const applications = applicationsSnapshot.docs.map(doc => ({
+  const applications: any[] = applicationsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     appliedAt: doc.data().appliedAt?.toDate()?.toISOString() || new Date().toISOString(),
