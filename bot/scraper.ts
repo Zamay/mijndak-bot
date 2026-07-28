@@ -34,13 +34,11 @@ export class MijnDakScraper {
     console.log('Navigating to login page...');
     await this.page.goto('https://amsterdam.mijndak.nl/Inloggen', { waitUntil: 'networkidle' });
     
-    // Check if already logged in or login button exists
-    const loginButton = this.page.locator('button:has-text("Inloggen"), a:has-text("Inloggen")').first();
-    if (await loginButton.count() > 0) {
+    // Check if we need to login by looking for the username field
+    await this.page.waitForSelector('input[name="UserName"]', { timeout: 10000 }).catch(() => {});
+    const usernameInput = this.page.locator('input[name="UserName"]');
+    if (await usernameInput.count() > 0) {
       console.log('Logging in...');
-      await loginButton.click();
-      
-      await this.page.waitForSelector('input[name="UserName"]');
       await this.page.fill('input[name="UserName"]', process.env.MIJNDAK_USERNAME || '', { force: true });
       await this.page.fill('input[name="Password"]', process.env.MIJNDAK_PASSWORD || '', { force: true });
       
