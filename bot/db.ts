@@ -112,4 +112,28 @@ export async function getWorstApplicationToCancel(): Promise<ApplicationData | n
   return null;
 }
 
+/**
+ * Mark apartments as unavailable if they are no longer on the site
+ */
+export async function markMissingApartmentsAsUnavailable(currentIds: string[]) {
+  const snapshot = await db.collection('apartments')
+    .where('status', '==', 'AVAILABLE')
+    .get();
+  
+  const batch = db.batch();
+  let count = 0;
+  
+  snapshot.forEach(doc => {
+    if (!currentIds.includes(doc.id)) {
+      batch.update(doc.ref, { status: 'UNAVAILABLE' });
+      count++;
+    }
+  });
+  
+  if (count > 0) {
+    await batch.commit();
+    console.log(`Marked ${count} apartments as UNAVAILABLE.`);
+  }
+}
+
 export { db };

@@ -65,6 +65,10 @@ async function runLogicCycle() {
       }
     }
 
+    // Mark apartments that disappeared from the site as UNAVAILABLE
+    const currentAptIds = apartments.map(a => a.publicatieId);
+    await db.markMissingApartmentsAsUnavailable(currentAptIds);
+
     const availableToApply = apartments.filter(a => a.isAvailableForApply);
     console.log(`Found ${availableToApply.length} apartments we can apply for.`);
 
