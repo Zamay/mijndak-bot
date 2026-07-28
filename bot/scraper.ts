@@ -39,31 +39,23 @@ export class MijnDakScraper {
     const usernameInput = this.page.locator('input[id="Input_UsernameVal"]');
     if (await usernameInput.count() > 0) {
       console.log('Logging in...');
-      await usernameInput.type(process.env.MIJNDAK_USERNAME || '', { delay: 100 });
-      await this.page.locator('input[id="Input_PasswordVal"]').type(process.env.MIJNDAK_PASSWORD || '', { delay: 100 });
       
-      // Try to accept cookies
+      // Close Cookie Popup
       try {
-        await this.page.click('button:has-text("ALLES ACCEPTEREN"), button:has-text("Accepteren")', { force: true, timeout: 2000 });
+        await this.page.click('#cookiescript_accept', { timeout: 2000 });
       } catch (e) {}
 
-      // Try to close any popups using ESC key or clicking close icons
-      await this.page.keyboard.press('Escape');
+      // Close Spam/Phishing Popup
       try {
-        const svgs = this.page.locator('svg, button[aria-label="Sluiten"]');
-        for (let i = 0; i < await svgs.count(); i++) {
-          await svgs.nth(i).click({ force: true, timeout: 500 }).catch(() => {});
-        }
+        await this.page.click('.popup-dialog i.fa-times', { timeout: 2000 });
       } catch (e) {}
-
-      // Remove disabled attribute just in case
-      await this.page.evaluate(() => {
-        const btn = document.querySelector('button[type="submit"]');
-        if (btn) btn.removeAttribute('disabled');
-      }).catch(() => {});
       
-      const submitBtn = this.page.locator('button[type="submit"]').first();
-      await submitBtn.click({ force: true });
+      // Type credentials normally (no force, since popups are gone)
+      await usernameInput.fill(process.env.MIJNDAK_USERNAME || '');
+      await this.page.locator('input[id="Input_PasswordVal"]').fill(process.env.MIJNDAK_PASSWORD || '');
+      
+      // Press Enter to submit the form natively
+      await this.page.locator('input[id="Input_PasswordVal"]').press('Enter');
       
       await this.page.waitForTimeout(5000);
       console.log('Login completed. Current URL:', this.page.url());
