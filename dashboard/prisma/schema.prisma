@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Apartment {
+  id          String        @id
+  url         String
+  address     String?
+  district    String?
+  city        String?
+  area        Int?
+  price       Float?
+  rooms       Int?
+  floor       Int?
+  elevator    Boolean       @default(false)
+  type        String?
+  publishedAt DateTime?
+  closingAt   DateTime?
+  createdAt   DateTime      @default(now())
+  
+  applications Application[]
+}
+
+model Application {
+  id            Int       @id @default(autoincrement())
+  apartmentId   String
+  apartment     Apartment @relation(fields: [apartmentId], references: [id])
+  status        String    // ACTIVE, EXPIRED, WON, LOST
+  queuePosition Int?
+  appliedAt     DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  level     String   // INFO, WARN, ERROR
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
