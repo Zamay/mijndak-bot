@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -73,21 +74,76 @@ export class MijnDakScraper {
     await this.page.waitForTimeout(5000); // Wait for React render
 
     const apartments = [];
-    const apartmentCards = this.page.locator('a[href^="HuisDetails?PublicatieId="]');
-    const count = await apartmentCards.count();
+    const apartmentCards = this.page.locator('.list-group > div.list-item, div[data-block*="WoningCard"]');
+    
+    // Fallback if cards not found
+    let cardsToIterate = apartmentCards;
+    let count = await cardsToIterate.count();
+    
+    if (count === 0) {
+       // Just grab the links directly
+       cardsToIterate = this.page.locator('a[href*="PublicatieId="]');
+       count = await cardsToIterate.count();
+    }
 
     for (let i = 0; i < count; i++) {
-      const card = apartmentCards.nth(i);
+      const card = cardsToIterate.nth(i);
       const text = await card.innerText();
-      const href = await card.getAttribute('href');
-      const publicatieId = href ? href.replace('HuisDetails?PublicatieId=', '') : '';
       
-      const hasApplied = text.includes('hebt gereageerd') || text.includes('hebt  gereageerd');
+      let href = await card.getAttribute('href');
+      if (!href) {
+        // Try finding link inside the card
+        const innerLink = card.locator('a[href*="PublicatieId="]').first();
+        if (await innerLink.count() > 0) {
+           href = await innerLink.getAttribute('href');
+        }
+      }
       
+      let publicatieId = '';
+      if (href) {
+         const match = href.match(/PublicatieId=(\d+)/);
+         if (match) publicatieId = match[1];
+      }
+      
+      // Also match weird spacing like 'hebt  gereageerd'
+      const hasApplied = /hebt\s+gereageerd/i.test(text);
+      let position = 999;
+      let totalCandidates = 999;
+
+      if (hasApplied) {
+        const posMatch = text.match(/positie:\s*(\d+)\s*\/\s*(\d+)/i);
+        if (posMatch) {
+          position = parseInt(posMatch[1] || '999');
+          totalCandidates = parseInt(posMatch[2] || '999');
+        } else {
+          const posMatchSingle = text.match(/positie:\s*(\d+)/i);
+          if (posMatchSingle) {
+            position = parseInt(posMatchSingle[1] || '999');
+          }
+        }
+      }
+      
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const title = lines[0] || '';
+      const location = lines.find(l => l.includes(',') && !l.includes('€')) || '';
+      
+      const priceMatch = text.match(/€\s*[\d.]+(?:,\d{2})?/);
+      const price = priceMatch ? priceMatch[0] : '';
+      
+      const dateMatch = text.match(/(\d{2}-\d{2}-\d{4},\s*\d{2}:\d{2})/);
+      const endDate = dateMatch ? dateMatch[1] : '';
+
       if (publicatieId) {
         apartments.push({
           publicatieId,
           isAvailableForApply: !hasApplied,
+          hasApplied,
+          position,
+          totalCandidates,
+          title,
+          location,
+          price,
+          endDate,
           rawText: text
         });
       }
@@ -121,21 +177,19 @@ export class MijnDakScraper {
     await this.page.goto(`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${publicatieId}`, { waitUntil: 'networkidle' });
     await this.page.waitForTimeout(5000);
     
-    // Attempt to find cancellation button - the exact text might be "Reactie intrekken" or similar.
-    // NOTE: This might need adjustment based on the actual UI text.
-    const intrekkenBtn = this.page.locator('text="Reactie intrekken", text="Intrekken", text="Verwijderen"').first();
-    if (await intrekkenBtn.count() > 0) {
-      await intrekkenBtn.click();
-      await this.page.waitForTimeout(3000);
+    const cancelBtn = this.page.locator('button, a').locator('text=/Reactie intrekken/i').first();
+    
+    if (await cancelBtn.count() > 0) {
+      await cancelBtn.click();
+      console.log(`Successfully clicked cancel for ${publicatieId}`);
       
-      // Handle confirmation dialog if any
-      const confirmBtn = this.page.locator('button:has-text("Ja"), button:has-text("Bevestigen")').first();
+      // Wait for any confirmation dialog/popup and confirm
+      await this.page.waitForTimeout(2000);
+      const confirmBtn = this.page.locator('button').locator('text=/Bevestigen|Ja, intrekken|Intrekken/i').first();
       if (await confirmBtn.count() > 0) {
         await confirmBtn.click();
-        await this.page.waitForTimeout(3000);
+        console.log(`Confirmed cancellation for ${publicatieId}`);
       }
-      
-      console.log(`Successfully cancelled application for ${publicatieId}`);
       return true;
     }
     
@@ -149,6 +203,8 @@ export class MijnDakScraper {
     console.log('Navigating to Reacties...');
     await this.page.goto('https://amsterdam.mijndak.nl/ReactieOverzicht', { waitUntil: 'networkidle' });
     await this.page.waitForTimeout(5000);
+    
+    fs.writeFileSync('reacties_dump.html', await this.page.content());
 
     const results = {
       actueel: [] as any[],
@@ -158,29 +214,38 @@ export class MijnDakScraper {
 
     // Helper to extract data from current tab
     const extractTab = async () => {
-      const listItems = this.page!.locator('.list-group > div, a[href^="HuisDetails?PublicatieId="]');
+      const listItems = this.page!.locator('.list-group > div.list-item');
       const count = await listItems.count();
       const tabData = [];
       for (let i = 0; i < count; i++) {
         const item = listItems.nth(i);
         const text = await item.innerText();
-        const href = await item.getAttribute('href');
-        if (href && href.includes('PublicatieId=')) {
-           const publicatieId = href.split('PublicatieId=')[1];
-           // Try to parse position. Usually format is "Positie: X / Y" or "Positie: X"
-           let position = 999;
-           let totalCandidates = 999;
-            const posMatch = text.match(/Positie:\s*(\d+)\s*\/\s*(\d+)/i);
-            if (posMatch) {
-              position = parseInt(posMatch[1] || '999');
-              totalCandidates = parseInt(posMatch[2] || '999');
-            } else {
-              const posMatchSingle = text.match(/Positie:\s*(\d+)/i);
-              if (posMatchSingle) {
-                position = parseInt(posMatchSingle[1] || '999');
+        
+        // Find inner link
+        const link = item.locator('a[href*="PublicatieId="]');
+        if (await link.count() > 0) {
+          const href = await link.first().getAttribute('href');
+          if (href) {
+            const publicatieIdMatch = href.match(/PublicatieId=(\d+)/);
+            if (publicatieIdMatch) {
+              const publicatieId = publicatieIdMatch[1];
+              let position = 999;
+              let totalCandidates = 999;
+              
+              // Text usually has "Voorlopige positie:4592 / 5556" or "Positie:2398 / 2676"
+              const posMatch = text.match(/positie:\s*(\d+)\s*\/\s*(\d+)/i);
+              if (posMatch) {
+                position = parseInt(posMatch[1] || '999');
+                totalCandidates = parseInt(posMatch[2] || '999');
+              } else {
+                const posMatchSingle = text.match(/positie:\s*(\d+)/i);
+                if (posMatchSingle) {
+                  position = parseInt(posMatchSingle[1] || '999');
+                }
               }
+              tabData.push({ publicatieId, position, totalCandidates, rawText: text });
             }
-           tabData.push({ publicatieId, position, totalCandidates, rawText: text });
+          }
         }
       }
       return tabData;

@@ -34,7 +34,10 @@ export default async function DashboardPage() {
     updatedAt: doc.data().updatedAt?.toDate()?.toISOString() || new Date().toISOString()
   }));
 
-  const activeApps = applications.filter((app: any) => app.status === 'APPLIED');
+  const activeApps = applications.filter((app: any) => app.status === 'APPLIED').map((app: any) => {
+    const apt = apartments.find(a => a.id === app.id);
+    return { ...app, apartment: apt || null };
+  });
   const pastApps = applications.filter((app: any) => app.status !== 'APPLIED');
 
   return (
@@ -77,12 +80,18 @@ export default async function DashboardPage() {
                   <div key={app.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-colors">
                     <div className="flex justify-between items-start mb-2">
                       <a href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${app.id}`} target="_blank" rel="noreferrer" className="text-lg font-medium text-white hover:text-emerald-400 transition-colors">
-                        Property #{app.id}
+                        {app.apartment?.address || `Property #${app.id}`}
                       </a>
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         {app.status}
                       </span>
                     </div>
+                    {app.apartment && (
+                      <div className="text-sm text-zinc-400 mb-4 flex items-center gap-3">
+                        {app.apartment.type && <span>📍 {app.apartment.type}</span>}
+                        {app.apartment.price && <span>💶 {app.apartment.price}</span>}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800/50">
                         <div className="text-xs text-zinc-500 mb-1">Queue Position</div>
@@ -112,21 +121,24 @@ export default async function DashboardPage() {
                   No history yet.
                 </div>
               ) : (
-                pastApps.slice(0, 5).map((app: any) => (
-                  <div key={app.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-zinc-300">Property #{app.id}</div>
-                      <div className="text-xs text-zinc-500 mt-1">{new Date(app.updatedAt).toLocaleDateString()}</div>
+                pastApps.slice(0, 5).map((app: any) => {
+                  const apt = apartments.find(a => a.id === app.id);
+                  return (
+                    <div key={app.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-zinc-300">{apt?.address || `Property #${app.id}`}</div>
+                        <div className="text-xs text-zinc-500 mt-1">{new Date(app.updatedAt).toLocaleDateString()}</div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                        app.status === 'CANCELLED' ? 'bg-amber-500/10 text-amber-500' : 
+                        app.status === 'SELECTED' ? 'bg-emerald-500/10 text-emerald-500' : 
+                        'bg-red-500/10 text-red-500'
+                      }`}>
+                        {app.status}
+                      </span>
                     </div>
-                    <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                      app.status === 'CANCELLED' ? 'bg-amber-500/10 text-amber-500' : 
-                      app.status === 'SELECTED' ? 'bg-emerald-500/10 text-emerald-500' : 
-                      'bg-red-500/10 text-red-500'
-                    }`}>
-                      {app.status}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </section>
@@ -142,12 +154,16 @@ export default async function DashboardPage() {
               </div>
             ) : (
               apartments.map((apt: any) => (
-                <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className="block bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:bg-zinc-800/80 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-sm font-medium text-white truncate pr-4">#{apt.id}</span>
-                    <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${apt.status === 'AVAILABLE' ? 'bg-emerald-500' : 'bg-zinc-600'}`}></span>
+                <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className="block bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:bg-zinc-800 transition-colors group">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-base font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-1">{apt.address || `#${apt.id}`}</span>
+                    <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${apt.status === 'AVAILABLE' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`}></span>
                   </div>
-                  <div className="text-xs text-zinc-500">
+                  <div className="flex flex-col gap-1.5 mt-3 mb-4">
+                    {apt.type && <div className="text-sm text-zinc-400 flex items-center gap-1.5"><span className="opacity-70">📍</span> <span className="truncate">{apt.type}</span></div>}
+                    {apt.price && <div className="text-sm text-zinc-400 flex items-center gap-1.5"><span className="opacity-70">💶</span> <span>{apt.price}</span></div>}
+                  </div>
+                  <div className="text-xs text-zinc-500 pt-3 border-t border-zinc-800">
                     Discovered: {new Date(apt.discoveryTime).toLocaleString()}
                   </div>
                 </a>

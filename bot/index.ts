@@ -41,8 +41,24 @@ async function runLogicCycle() {
       await db.saveApartment({
         publicatieId: apt.publicatieId,
         discoveryTime: new Date(),
-        status: apt.isAvailableForApply ? 'AVAILABLE' : 'UNAVAILABLE'
+        status: apt.isAvailableForApply ? 'AVAILABLE' : 'UNAVAILABLE',
+        address: apt.title || undefined,
+        type: apt.location || undefined, // use type or add a new field, the interface has address and type
+        price: apt.price || undefined,
+        // we can also save endDate if we add it to the interface
       });
+      
+      // If we have already applied, update the application record with the position!
+      if (apt.hasApplied) {
+        await db.saveApplication({
+          publicatieId: apt.publicatieId,
+          position: apt.position,
+          totalCandidates: apt.totalCandidates,
+          status: 'APPLIED',
+          appliedAt: new Date(), // DB helper usually uses this to create if not exists, but we can rely on it not overriding real appliedAt if implemented right
+          updatedAt: new Date()
+        });
+      }
     }
 
     const availableToApply = apartments.filter(a => a.isAvailableForApply);
@@ -108,8 +124,8 @@ async function runLogicCycle() {
 }
 
 // Check if ran directly
-if (require.main === module) {
-  runLogicCycle();
+if (process.argv[1] && process.argv[1].includes('index.ts')) {
+  runLogicCycle().catch(console.error);
 }
 
 export { runLogicCycle };
