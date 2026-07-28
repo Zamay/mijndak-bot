@@ -38,15 +38,17 @@ async function runLogicCycle() {
     const apartments = await scraper.syncAanbod();
     
     for (const apt of apartments) {
-      await db.saveApartment({
+      const aptData: any = {
         publicatieId: apt.publicatieId,
         discoveryTime: new Date(),
-        status: apt.isAvailableForApply ? 'AVAILABLE' : 'UNAVAILABLE',
-        address: apt.title || undefined,
-        type: apt.location || undefined, // use type or add a new field, the interface has address and type
-        price: apt.price || undefined,
-        // we can also save endDate if we add it to the interface
-      });
+        status: apt.isAvailableForApply ? 'AVAILABLE' : 'UNAVAILABLE'
+      };
+      
+      if (apt.title) aptData.address = apt.title;
+      if (apt.location) aptData.type = apt.location;
+      if (apt.price) aptData.price = apt.price;
+      
+      await db.saveApartment(aptData);
       
       // If we have already applied, update the application record with the position!
       if (apt.hasApplied) {

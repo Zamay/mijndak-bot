@@ -102,7 +102,7 @@ export class MijnDakScraper {
       let publicatieId = '';
       if (href) {
          const match = href.match(/PublicatieId=(\d+)/);
-         if (match) publicatieId = match[1];
+         if (match && match[1]) publicatieId = match[1];
       }
       
       // Also match weird spacing like 'hebt  gereageerd'
