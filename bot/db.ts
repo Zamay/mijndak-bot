@@ -1,6 +1,10 @@
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Firebase
 const serviceAccountPath = path.resolve(__dirname, 'serviceAccountKey.json');
@@ -97,7 +101,7 @@ export async function getWorstApplicationToCancel(): Promise<ApplicationData | n
   apps.sort((a, b) => b.position - a.position);
 
   const worst = apps[0];
-  if (worst.position > 100) {
+  if (worst && worst.position > 100) {
     return worst;
   }
   return null;

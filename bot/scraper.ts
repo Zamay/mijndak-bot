@@ -1,6 +1,10 @@
-import { chromium, Browser, Page, BrowserContext } from 'playwright';
+import { chromium, type Browser, type Page, type BrowserContext } from 'playwright';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -167,16 +171,16 @@ export class MijnDakScraper {
            // Try to parse position. Usually format is "Positie: X / Y" or "Positie: X"
            let position = 999;
            let totalCandidates = 999;
-           const posMatch = text.match(/Positie:\s*(\d+)\s*\/\s*(\d+)/i);
-           if (posMatch) {
-             position = parseInt(posMatch[1]);
-             totalCandidates = parseInt(posMatch[2]);
-           } else {
-             const posMatchSingle = text.match(/Positie:\s*(\d+)/i);
-             if (posMatchSingle) {
-               position = parseInt(posMatchSingle[1]);
-             }
-           }
+            const posMatch = text.match(/Positie:\s*(\d+)\s*\/\s*(\d+)/i);
+            if (posMatch) {
+              position = parseInt(posMatch[1] || '999');
+              totalCandidates = parseInt(posMatch[2] || '999');
+            } else {
+              const posMatchSingle = text.match(/Positie:\s*(\d+)/i);
+              if (posMatchSingle) {
+                position = parseInt(posMatchSingle[1] || '999');
+              }
+            }
            tabData.push({ publicatieId, position, totalCandidates, rawText: text });
         }
       }
