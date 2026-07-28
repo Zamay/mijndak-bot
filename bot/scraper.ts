@@ -39,8 +39,8 @@ export class MijnDakScraper {
     const usernameInput = this.page.locator('input[id="Input_UsernameVal"]');
     if (await usernameInput.count() > 0) {
       console.log('Logging in...');
-      await this.page.fill('input[id="Input_UsernameVal"]', process.env.MIJNDAK_USERNAME || '', { force: true });
-      await this.page.fill('input[id="Input_PasswordVal"]', process.env.MIJNDAK_PASSWORD || '', { force: true });
+      await usernameInput.type(process.env.MIJNDAK_USERNAME || '', { delay: 100 });
+      await this.page.locator('input[id="Input_PasswordVal"]').type(process.env.MIJNDAK_PASSWORD || '', { delay: 100 });
       
       // Try to accept cookies
       try {
@@ -56,6 +56,12 @@ export class MijnDakScraper {
         }
       } catch (e) {}
 
+      // Remove disabled attribute just in case
+      await this.page.evaluate(() => {
+        const btn = document.querySelector('button[type="submit"]');
+        if (btn) btn.removeAttribute('disabled');
+      }).catch(() => {});
+      
       const submitBtn = this.page.locator('button[type="submit"]').first();
       await submitBtn.click({ force: true });
       
