@@ -162,6 +162,7 @@ export default async function DashboardPage() {
                   <div className="flex flex-col gap-1.5 mt-3 mb-4">
                     {apt.type && <div className="text-sm text-zinc-400 flex items-center gap-1.5"><span className="opacity-70">📍</span> <span className="truncate">{apt.type}</span></div>}
                     {apt.price && <div className="text-sm text-zinc-400 flex items-center gap-1.5"><span className="opacity-70">💶</span> <span>{apt.price}</span></div>}
+                    {apt.position && <div className="text-sm text-emerald-400/90 font-medium flex items-center gap-1.5 mt-1"><span className="opacity-70">📊</span> <span>Rank: {apt.position} / {apt.totalCandidates}</span></div>}
                   </div>
                   <div className="text-xs text-zinc-500 pt-3 border-t border-zinc-800">
                     Discovered: {new Date(apt.discoveryTime).toLocaleString()}

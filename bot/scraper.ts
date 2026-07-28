@@ -107,19 +107,17 @@ export class MijnDakScraper {
       
       // Also match weird spacing like 'hebt  gereageerd'
       const hasApplied = /hebt\s+gereageerd/i.test(text);
-      let position = 999;
-      let totalCandidates = 999;
+      let position = 99999;
+      let totalCandidates = 99999;
 
-      if (hasApplied) {
-        const posMatch = text.match(/positie:\s*(\d+)\s*\/\s*(\d+)/i);
-        if (posMatch) {
-          position = parseInt(posMatch[1] || '999');
-          totalCandidates = parseInt(posMatch[2] || '999');
-        } else {
-          const posMatchSingle = text.match(/positie:\s*(\d+)/i);
-          if (posMatchSingle) {
-            position = parseInt(posMatchSingle[1] || '999');
-          }
+      const posMatch = text.match(/positie:\s*(\d+)\s*\/\s*(\d+)/i);
+      if (posMatch) {
+        position = parseInt(posMatch[1] || '99999');
+        totalCandidates = parseInt(posMatch[2] || '99999');
+      } else {
+        const posMatchSingle = text.match(/positie:\s*(\d+)/i);
+        if (posMatchSingle) {
+          position = parseInt(posMatchSingle[1] || '99999');
         }
       }
       

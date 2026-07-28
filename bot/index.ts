@@ -47,6 +47,8 @@ async function runLogicCycle() {
       if (apt.title) aptData.address = apt.title;
       if (apt.location) aptData.type = apt.location;
       if (apt.price) aptData.price = apt.price;
+      if (apt.position !== 99999) aptData.position = apt.position;
+      if (apt.totalCandidates !== 99999) aptData.totalCandidates = apt.totalCandidates;
       
       await db.saveApartment(aptData);
       
@@ -90,28 +92,35 @@ async function runLogicCycle() {
           const worstApp = await db.getWorstApplicationToCancel();
           
           if (worstApp && worstApp.position > WORST_POSITION_TO_CANCEL) {
-            console.log(`Found bad application ${worstApp.publicatieId} (Position: ${worstApp.position}). Cancelling...`);
-            const cancelSuccess = await scraper.cancelApplication(worstApp.publicatieId);
             
-            if (cancelSuccess) {
-              await db.cancelApplicationDB(worstApp.publicatieId);
-              console.log(`Successfully cancelled. Now applying to new apartment ${newApt.publicatieId}...`);
+            // NEW LOGIC: Only cancel if the new apartment has a better (lower) position
+            if (newApt.position < worstApp.position) {
+              console.log(`Found bad application ${worstApp.publicatieId} (Pos: ${worstApp.position}). New apartment ${newApt.publicatieId} has better pos: ${newApt.position}. Cancelling...`);
+              const cancelSuccess = await scraper.cancelApplication(worstApp.publicatieId);
               
-              const applySuccess = await scraper.applyToApartment(newApt.publicatieId);
-              if (applySuccess) {
-                await db.saveApplication({
-                  publicatieId: newApt.publicatieId,
-                  position: 999,
-                  totalCandidates: 999,
-                  status: 'APPLIED',
-                  appliedAt: new Date(),
-                  updatedAt: new Date()
-                });
+              if (cancelSuccess) {
+                await db.cancelApplicationDB(worstApp.publicatieId);
+                console.log(`Successfully cancelled. Now applying to new apartment ${newApt.publicatieId}...`);
+                
+                const applySuccess = await scraper.applyToApartment(newApt.publicatieId);
+                if (applySuccess) {
+                  await db.saveApplication({
+                    publicatieId: newApt.publicatieId,
+                    position: 99999, // Will be updated on next run
+                    totalCandidates: 99999,
+                    status: 'APPLIED',
+                    appliedAt: new Date(),
+                    updatedAt: new Date()
+                  });
+                }
               }
+            } else {
+              console.log(`Worst active application ${worstApp.publicatieId} (Pos: ${worstApp.position}) is better or equal to new apartment ${newApt.publicatieId} (Pos: ${newApt.position}). Skipping...`);
+              continue; // Try the next available apartment
             }
           } else {
             console.log('No active applications have a position > 100, or we could not find one. Keeping current applications.');
-            break; // Stop trying to apply for new ones if we can't free up a slot
+            break; // Stop trying to apply for new ones if we can't free up a slot (all are <= 100)
           }
         }
       }
