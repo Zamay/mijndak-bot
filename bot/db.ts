@@ -98,10 +98,14 @@ export async function getWorstApplicationToCancel(): Promise<ApplicationData | n
   const apps = await getActiveApplications();
   if (apps.length === 0) return null;
 
-  // Sort by position descending (worst first)
-  apps.sort((a, b) => b.position - a.position);
+  // Filter out the ones with position 999 so we don't instantly cancel new apps
+  const validApps = apps.filter(a => a.position !== 999);
+  if (validApps.length === 0) return null;
 
-  const worst = apps[0];
+  // Sort by position descending (worst first)
+  validApps.sort((a, b) => b.position - a.position);
+
+  const worst = validApps[0];
   if (worst && worst.position > 100) {
     return worst;
   }
