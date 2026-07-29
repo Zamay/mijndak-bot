@@ -129,7 +129,8 @@ export class MijnDakScraper {
       
       // Title is usually line 1, but sometimes line 0 is "100% wensmatch" or "Passend"
       let titleIndex = 0;
-      if (lines.length > 0 && (lines[0].toLowerCase().includes('wensmatch') || lines[0].toLowerCase().includes('passend') || lines[0].toLowerCase().includes('nieuw'))) {
+      const firstLine = lines[0];
+      if (firstLine && (firstLine.toLowerCase().includes('wensmatch') || firstLine.toLowerCase().includes('passend') || firstLine.toLowerCase().includes('nieuw'))) {
          titleIndex = 1;
       }
       const title = lines[titleIndex] || '';
