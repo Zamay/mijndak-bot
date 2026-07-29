@@ -12,12 +12,18 @@ async function runLogicCycle() {
     await scraper.init();
     await scraper.login();
 
-    // 1. Sync Reacties first to get accurate state
+    // 1. Fetch current active apps in DB to fix the 4/2 bug
+    const activeAppsBefore = await db.getActiveApplications();
+    const activeAppIds = new Set(activeAppsBefore.map(a => a.publicatieId));
+
+    // 2. Sync Reacties first to get accurate state
     console.log('Syncing current applications (Reacties)...');
     const reacties = await scraper.syncReacties();
     
     // Update DB with current Actueel apps
+    const currentActueelIds = new Set<string>();
     for (const app of reacties.actueel) {
+      currentActueelIds.add(app.publicatieId);
       await db.saveApplication({
         publicatieId: app.publicatieId,
         position: app.position,
@@ -28,12 +34,15 @@ async function runLogicCycle() {
       });
     }
 
-    // Process Lopend/Historisch to mark them as SELECTED/REJECTED or similar
-    // For now we just focus on Actueel to manage the limit.
-    // Lopend means we are still in the running but cannot cancel it, so does it count towards the limit of 2?
-    // The user said "Максимум що я можу подати - 2 заявки". This usually applies to Actueel.
+    // Any app that was APPLIED but is not in Actueel anymore should be marked CANCELLED
+    for (const appId of activeAppIds) {
+      if (!currentActueelIds.has(appId)) {
+        console.log(`Application ${appId} is no longer in Actueel. Marking as CANCELLED in DB.`);
+        await db.cancelApplicationDB(appId);
+      }
+    }
 
-    // 2. Sync Aanbod (available apartments)
+    // 3. Sync Aanbod (available apartments)
     console.log('Syncing available apartments (Aanbod)...');
     const apartments = await scraper.syncAanbod();
     
@@ -49,17 +58,20 @@ async function runLogicCycle() {
       if (apt.price) aptData.price = apt.price;
       if (apt.position !== 99999) aptData.position = apt.position;
       if (apt.totalCandidates !== 99999) aptData.totalCandidates = apt.totalCandidates;
+      if (apt.endDate) aptData.endDate = apt.endDate;
+      if (apt.imageUrl) aptData.imageUrl = apt.imageUrl;
+      if (apt.specs) aptData.specs = apt.specs;
       
       await db.saveApartment(aptData);
       
-      // If we have already applied, update the application record with the position!
+      // If we have already applied (e.g. manually), update the application record
       if (apt.hasApplied) {
         await db.saveApplication({
           publicatieId: apt.publicatieId,
           position: apt.position,
           totalCandidates: apt.totalCandidates,
           status: 'APPLIED',
-          appliedAt: new Date(), // DB helper usually uses this to create if not exists, but we can rely on it not overriding real appliedAt if implemented right
+          appliedAt: new Date(),
           updatedAt: new Date()
         });
       }
@@ -72,61 +84,30 @@ async function runLogicCycle() {
     const availableToApply = apartments.filter(a => a.isAvailableForApply);
     console.log(`Found ${availableToApply.length} apartments we can apply for.`);
 
-    // 3. Application Logic
-    if (availableToApply.length > 0) {
-      for (const newApt of availableToApply) {
-        const activeApps = await db.getActiveApplications();
-        
-        if (activeApps.length < MAX_ACTIVE_APPLICATIONS) {
-          console.log(`We have ${activeApps.length} active applications. We can apply directly to ${newApt.publicatieId}`);
-          const success = await scraper.applyToApartment(newApt.publicatieId);
-          if (success) {
-            await db.saveApplication({
-              publicatieId: newApt.publicatieId,
-              position: 999, // Will be updated on next Reacties sync
-              totalCandidates: 999,
-              status: 'APPLIED',
-              appliedAt: new Date(),
-              updatedAt: new Date()
-            });
-            console.log(`Successfully recorded application for ${newApt.publicatieId}`);
-          }
-        } else {
-          console.log(`We are at the limit of ${MAX_ACTIVE_APPLICATIONS} applications. Checking for a bad application to cancel...`);
-          const worstApp = await db.getWorstApplicationToCancel();
-          
-          if (worstApp && worstApp.position > WORST_POSITION_TO_CANCEL) {
-            
-            // NEW LOGIC: Only cancel if the new apartment has a better (lower) position
-            if (newApt.position < worstApp.position) {
-              console.log(`Found bad application ${worstApp.publicatieId} (Pos: ${worstApp.position}). New apartment ${newApt.publicatieId} has better pos: ${newApt.position}. Cancelling...`);
-              const cancelSuccess = await scraper.cancelApplication(worstApp.publicatieId);
-              
-              if (cancelSuccess) {
-                await db.cancelApplicationDB(worstApp.publicatieId);
-                console.log(`Successfully cancelled. Now applying to new apartment ${newApt.publicatieId}...`);
-                
-                const applySuccess = await scraper.applyToApartment(newApt.publicatieId);
-                if (applySuccess) {
-                  await db.saveApplication({
-                    publicatieId: newApt.publicatieId,
-                    position: 99999, // Will be updated on next run
-                    totalCandidates: 99999,
-                    status: 'APPLIED',
-                    appliedAt: new Date(),
-                    updatedAt: new Date()
-                  });
-                }
-              }
-            } else {
-              console.log(`Worst active application ${worstApp.publicatieId} (Pos: ${worstApp.position}) is better or equal to new apartment ${newApt.publicatieId} (Pos: ${newApt.position}). Skipping...`);
-              continue; // Try the next available apartment
-            }
-          } else {
-            console.log('No active applications have a position > 100, or we could not find one. Keeping current applications.');
-            break; // Stop trying to apply for new ones if we can't free up a slot (all are <= 100)
-          }
+    // Sort by position (best positions first)
+    availableToApply.sort((a, b) => a.position - b.position);
+
+    // 4. Application Logic - Set and Forget
+    for (const newApt of availableToApply) {
+      const activeApps = await db.getActiveApplications();
+      
+      if (activeApps.length < MAX_ACTIVE_APPLICATIONS) {
+        console.log(`We have ${activeApps.length} active applications. We can apply directly to ${newApt.publicatieId}`);
+        const success = await scraper.applyToApartment(newApt.publicatieId);
+        if (success) {
+          await db.saveApplication({
+            publicatieId: newApt.publicatieId,
+            position: newApt.position !== 99999 ? newApt.position : 999, 
+            totalCandidates: newApt.totalCandidates !== 99999 ? newApt.totalCandidates : 999,
+            status: 'APPLIED',
+            appliedAt: new Date(),
+            updatedAt: new Date()
+          });
+          console.log(`Successfully recorded application for ${newApt.publicatieId}`);
         }
+      } else {
+        console.log(`We are at the limit of ${MAX_ACTIVE_APPLICATIONS} applications. Smart swap is disabled per user request. Skipping...`);
+        break; // Stop looking if we hit the limit
       }
     }
 

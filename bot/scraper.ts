@@ -74,38 +74,42 @@ export class MijnDakScraper {
     await this.page.waitForTimeout(5000); // Wait for React render
 
     const apartments = [];
-    const apartmentCards = this.page.locator('.list-group > div.list-item, div[data-block*="WoningCard"]');
+    // Only get the large blocks representing an apartment card
+    const apartmentCards = this.page.locator('div[data-block*="HuisBlock"]');
     
-    // Fallback if cards not found
-    let cardsToIterate = apartmentCards;
-    let count = await cardsToIterate.count();
+    let count = await apartmentCards.count();
     
-    if (count === 0) {
-       // Just grab the links directly
-       cardsToIterate = this.page.locator('a[href*="PublicatieId="]');
-       count = await cardsToIterate.count();
-    }
-
     for (let i = 0; i < count; i++) {
-      const card = cardsToIterate.nth(i);
+      const card = apartmentCards.nth(i);
+      
       const text = await card.innerText();
+      const html = await card.innerHTML();
       
-      let href = await card.getAttribute('href');
-      if (!href) {
-        // Try finding link inside the card
-        const innerLink = card.locator('a[href*="PublicatieId="]').first();
-        if (await innerLink.count() > 0) {
-           href = await innerLink.getAttribute('href');
-        }
-      }
+      // Look for the main link
+      const innerLink = card.locator('a[href*="PublicatieId="]').first();
+      if (await innerLink.count() === 0) continue;
       
+      const href = await innerLink.getAttribute('href');
       let publicatieId = '';
       if (href) {
          const match = href.match(/PublicatieId=(\d+)/);
          if (match && match[1]) publicatieId = match[1];
       }
       
-      // Also match weird spacing like 'hebt  gereageerd'
+      if (!publicatieId) continue;
+      
+      // Filter out parking
+      if (text.toLowerCase().includes('parkeerplaats')) {
+         continue; // skip parking
+      }
+
+      // Extract image
+      const img = card.locator('img').first();
+      let imageUrl = '';
+      if (await img.count() > 0) {
+        imageUrl = await img.getAttribute('src') || '';
+      }
+      
       const hasApplied = /hebt\s+gereageerd/i.test(text);
       let position = 99999;
       let totalCandidates = 99999;
@@ -122,29 +126,50 @@ export class MijnDakScraper {
       }
       
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      const title = lines[0] || '';
-      const location = lines.find(l => l.includes(',') && !l.includes('€')) || '';
       
+      // Title is usually line 1, but sometimes line 0 is "100% wensmatch" or "Passend"
+      let titleIndex = 0;
+      if (lines[0].toLowerCase().includes('wensmatch') || lines[0].toLowerCase().includes('passend') || lines[0].toLowerCase().includes('nieuw')) {
+         titleIndex = 1;
+      }
+      const title = lines[titleIndex] || '';
+      
+      // Location is usually the line with city + neighborhood (e.g. Amsterdam, Noord)
+      const location = lines.find(l => (l.includes(',') && !l.includes('€') && !l.match(/\d{2}-\d{2}/))) || '';
+      
+      // Price
       const priceMatch = text.match(/€\s*[\d.]+(?:,\d{2})?/);
       const price = priceMatch ? priceMatch[0] : '';
       
+      // End date
       const dateMatch = text.match(/(\d{2}-\d{2}-\d{4},\s*\d{2}:\d{2})/);
       const endDate = dateMatch ? dateMatch[1] : '';
-
-      if (publicatieId) {
-        apartments.push({
-          publicatieId,
-          isAvailableForApply: !hasApplied,
-          hasApplied,
-          position,
-          totalCandidates,
-          title,
-          location,
-          price,
-          endDate,
-          rawText: text
-        });
+      
+      // Additional specs (rooms, size, type)
+      const specsMatch = text.match(/(\d+\s*Kamers\s*\|\s*\d+m²\s*\|\s*[a-zA-Z]+)/i);
+      let specs = '';
+      if (specsMatch) {
+          specs = specsMatch[1];
+      } else {
+          // Alternative fallback for "2 Kamers | 36m² | Portiekwoning" or bullet points
+          const lineWithSpecs = lines.find(l => l.includes('m²'));
+          specs = lineWithSpecs || '';
       }
+
+      apartments.push({
+        publicatieId,
+        isAvailableForApply: !hasApplied,
+        hasApplied,
+        position,
+        totalCandidates,
+        title,
+        location,
+        price,
+        endDate,
+        imageUrl,
+        specs,
+        rawText: text
+      });
     }
     return apartments;
   }

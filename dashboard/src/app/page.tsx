@@ -144,33 +144,84 @@ export default async function DashboardPage() {
           </section>
         </div>
 
-        {/* Recently Discovered Apartments */}
+        {/* Active Market (Available) */}
         <section className="space-y-4 pt-4 border-t border-zinc-800">
-          <h2 className="text-xl font-semibold text-zinc-300">Recently Discovered Apartments</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {apartments.length === 0 ? (
+          <h2 className="text-xl font-semibold text-zinc-300">Available Apartments</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {apartments.filter((a: any) => a.status === 'AVAILABLE').length === 0 ? (
               <div className="col-span-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                No apartments found yet. The bot will find them on its next run.
+                No active apartments found yet.
               </div>
             ) : (
-              apartments.map((apt: any) => (
-                <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className="block bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:bg-zinc-800 transition-colors group">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-base font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-1">{apt.address || `#${apt.id}`}</span>
-                    <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${apt.status === 'AVAILABLE' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`}></span>
+              apartments.filter((a: any) => a.status === 'AVAILABLE').map((apt: any) => (
+                <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className="block bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:bg-zinc-800/80 transition-all group flex flex-col sm:flex-row">
+                  {/* Image */}
+                  <div className="sm:w-1/3 h-48 sm:h-auto bg-zinc-800 relative flex-shrink-0">
+                    {apt.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={apt.imageUrl} alt={apt.address} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-zinc-600 text-3xl">🏠</div>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-1.5 mt-3 mb-4">
-                    {apt.type && <div className="text-sm text-zinc-400 flex items-center gap-1.5"><span className="opacity-70">📍</span> <span className="truncate">{apt.type}</span></div>}
-                    {apt.price && <div className="text-sm text-zinc-400 flex items-center gap-1.5"><span className="opacity-70">💶</span> <span>{apt.price}</span></div>}
-                    {apt.position && <div className="text-sm text-emerald-400/90 font-medium flex items-center gap-1.5 mt-1"><span className="opacity-70">📊</span> <span>Rank: {apt.position} / {apt.totalCandidates}</span></div>}
-                  </div>
-                  <div className="text-xs text-zinc-500 pt-3 border-t border-zinc-800">
-                    Discovered: {new Date(apt.discoveryTime).toLocaleString()}
+                  
+                  {/* Content */}
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-blue-400 group-hover:text-blue-300 transition-colors line-clamp-1">{apt.address || `#${apt.id}`}</h3>
+                      <p className="text-sm text-zinc-400 mt-1">{apt.type}</p>
+                      
+                      {apt.specs && (
+                        <p className="text-sm text-zinc-500 mt-3 font-medium">
+                          {apt.specs.replace(/\|/g, ' • ')}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="mt-4 flex items-end justify-between">
+                      <div>
+                        <div className="font-bold text-lg text-zinc-200">{apt.price || 'Prijs onbekend'}</div>
+                        {apt.position && (
+                          <div className="text-sm text-blue-400 mt-1">
+                            Jouw voorlopige positie: <span className="font-medium">{apt.position} / {apt.totalCandidates}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="text-right">
+                        <div className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Reageer tot</div>
+                        <div className="text-sm text-zinc-300">{apt.endDate || 'Unknown'}</div>
+                      </div>
+                    </div>
                   </div>
                 </a>
               ))
             )}
           </div>
+        </section>
+
+        {/* Unavailable/Historical Apartments */}
+        <section className="pt-8">
+          <details className="group">
+            <summary className="cursor-pointer text-zinc-500 hover:text-zinc-400 transition-colors font-medium flex items-center gap-2 outline-none">
+              <span className="group-open:rotate-90 transition-transform">▶</span>
+              Show Expired/Unavailable Apartments ({apartments.filter((a: any) => a.status !== 'AVAILABLE').length})
+            </summary>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {apartments.filter((a: any) => a.status !== 'AVAILABLE').map((apt: any) => (
+                <div key={apt.id} className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-4 opacity-60 grayscale flex flex-col justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-zinc-300 line-clamp-1">{apt.address || `#${apt.id}`}</div>
+                    <div className="text-xs text-zinc-500 mt-1">{apt.type}</div>
+                  </div>
+                  <div className="mt-3 flex justify-between items-end">
+                     <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">Expired</span>
+                     {apt.position && <span className="text-xs text-zinc-500">Rank: {apt.position}/{apt.totalCandidates}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
         </section>
       </div>
     </div>
