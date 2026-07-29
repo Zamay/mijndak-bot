@@ -129,7 +129,7 @@ export class MijnDakScraper {
       
       // Title is usually line 1, but sometimes line 0 is "100% wensmatch" or "Passend"
       let titleIndex = 0;
-      if (lines[0].toLowerCase().includes('wensmatch') || lines[0].toLowerCase().includes('passend') || lines[0].toLowerCase().includes('nieuw')) {
+      if (lines.length > 0 && (lines[0].toLowerCase().includes('wensmatch') || lines[0].toLowerCase().includes('passend') || lines[0].toLowerCase().includes('nieuw'))) {
          titleIndex = 1;
       }
       const title = lines[titleIndex] || '';
@@ -149,7 +149,7 @@ export class MijnDakScraper {
       const specsMatch = text.match(/(\d+\s*Kamers\s*\|\s*\d+m²\s*\|\s*[a-zA-Z]+)/i);
       let specs = '';
       if (specsMatch) {
-          specs = specsMatch[1];
+          specs = specsMatch[1] || '';
       } else {
           // Alternative fallback for "2 Kamers | 36m² | Portiekwoning" or bullet points
           const lineWithSpecs = lines.find(l => l.includes('m²'));
