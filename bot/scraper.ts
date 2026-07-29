@@ -130,7 +130,7 @@ export class MijnDakScraper {
       // Title is usually line 1, but sometimes it is preceded by badges like "100% wensmatch", "Passend", "Met situatiepunten"
       let titleIndex = 0;
       while (titleIndex < lines.length) {
-         const l = lines[titleIndex].toLowerCase();
+         const l = lines[titleIndex]?.toLowerCase() || '';
          if (l.includes('wensmatch') || l.includes('passend') || l.includes('nieuw') || l.includes('situatiepunten')) {
             titleIndex++;
          } else {
@@ -275,7 +275,7 @@ export class MijnDakScraper {
               const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
               let titleIndex = 0;
               while (titleIndex < lines.length) {
-                const l = lines[titleIndex].toLowerCase();
+                const l = lines[titleIndex]?.toLowerCase() || '';
                 if (l.includes('wensmatch') || l.includes('passend') || l.includes('nieuw') || l.includes('situatiepunten')) {
                     titleIndex++;
                 } else {
