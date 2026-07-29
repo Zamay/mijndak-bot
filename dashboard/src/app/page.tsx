@@ -65,14 +65,14 @@ export default async function DashboardPage() {
 
         {/* Active Market (Available) */}
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-zinc-300">Available Apartments</h2>
+          <h2 className="text-xl font-semibold text-zinc-300">Available & Active Apartments</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {apartments.filter((a: any) => a.status === 'AVAILABLE').length === 0 ? (
+            {apartments.filter((a: any) => a.status === 'AVAILABLE' || activeApps.some((app: any) => app.id === a.id)).length === 0 ? (
               <div className="col-span-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
                 No active apartments found yet.
               </div>
             ) : (
-              apartments.filter((a: any) => a.status === 'AVAILABLE').map((apt: any) => {
+              apartments.filter((a: any) => a.status === 'AVAILABLE' || activeApps.some((app: any) => app.id === a.id)).map((apt: any) => {
                 const isApplied = activeApps.some((app: any) => app.id === apt.id);
                 return (
                   <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className={`block bg-zinc-900 border ${isApplied ? 'border-emerald-500/50' : 'border-zinc-800'} rounded-xl overflow-hidden hover:bg-zinc-800/80 transition-all group flex flex-col sm:flex-row relative`}>
@@ -169,11 +169,11 @@ export default async function DashboardPage() {
             <h2 className="text-xl font-semibold text-zinc-300">Expired / Unavailable</h2>
             <details className="group bg-zinc-900/30 border border-zinc-800/50 rounded-2xl">
               <summary className="cursor-pointer text-zinc-400 hover:text-zinc-300 p-4 transition-colors font-medium flex items-center justify-between outline-none">
-                <span>View Expired Apartments ({apartments.filter((a: any) => a.status !== 'AVAILABLE').length})</span>
+                <span>View Expired Apartments ({apartments.filter((a: any) => a.status !== 'AVAILABLE' && !activeApps.some((app: any) => app.id === a.id)).length})</span>
                 <span className="group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div className="p-4 border-t border-zinc-800/50 max-h-[400px] overflow-y-auto space-y-3">
-                {apartments.filter((a: any) => a.status !== 'AVAILABLE').map((apt: any) => (
+                {apartments.filter((a: any) => a.status !== 'AVAILABLE' && !activeApps.some((app: any) => app.id === a.id)).map((apt: any) => (
                   <div key={apt.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-4 opacity-70 flex flex-col justify-between">
                     <div>
                       <div className="text-sm font-bold text-zinc-300 line-clamp-1">{apt.address || `#${apt.id}`}</div>

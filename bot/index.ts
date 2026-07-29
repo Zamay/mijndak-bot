@@ -24,6 +24,8 @@ async function runLogicCycle() {
     const currentActueelIds = new Set<string>();
     for (const app of reacties.actueel) {
       currentActueelIds.add(app.publicatieId);
+      
+      // Save application state
       await db.saveApplication({
         publicatieId: app.publicatieId,
         position: app.position,
@@ -32,6 +34,24 @@ async function runLogicCycle() {
         appliedAt: new Date(), // this will be updated correctly later if we already have it
         updatedAt: new Date()
       });
+
+      // ALSO save the apartment data so the UI can render it!
+      const aptData: any = {
+        publicatieId: app.publicatieId,
+        discoveryTime: new Date(),
+        status: 'UNAVAILABLE' // Set to unavailable initially, syncAanbod will change it to AVAILABLE if it's still on the main page. But our UI shows it if there's an active application.
+      };
+      
+      if (app.title) aptData.address = app.title;
+      if (app.location) aptData.type = app.location;
+      if (app.price) aptData.price = app.price;
+      if (app.position !== 99999) aptData.position = app.position;
+      if (app.totalCandidates !== 99999) aptData.totalCandidates = app.totalCandidates;
+      if (app.endDate) aptData.endDate = app.endDate;
+      if (app.imageUrl) aptData.imageUrl = app.imageUrl;
+      if (app.specs) aptData.specs = app.specs;
+
+      await db.saveApartment(aptData);
     }
 
     // Any app that was APPLIED but is not in Actueel anymore should be marked CANCELLED

@@ -127,11 +127,15 @@ export class MijnDakScraper {
       
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       
-      // Title is usually line 1, but sometimes line 0 is "100% wensmatch" or "Passend"
+      // Title is usually line 1, but sometimes it is preceded by badges like "100% wensmatch", "Passend", "Met situatiepunten"
       let titleIndex = 0;
-      const firstLine = lines[0];
-      if (firstLine && (firstLine.toLowerCase().includes('wensmatch') || firstLine.toLowerCase().includes('passend') || firstLine.toLowerCase().includes('nieuw'))) {
-         titleIndex = 1;
+      while (titleIndex < lines.length) {
+         const l = lines[titleIndex].toLowerCase();
+         if (l.includes('wensmatch') || l.includes('passend') || l.includes('nieuw') || l.includes('situatiepunten')) {
+            titleIndex++;
+         } else {
+            break;
+         }
       }
       const title = lines[titleIndex] || '';
       
@@ -267,7 +271,59 @@ export class MijnDakScraper {
                   position = parseInt(posMatchSingle[1] || '999');
                 }
               }
-              tabData.push({ publicatieId, position, totalCandidates, rawText: text });
+              // Extract title
+              const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+              let titleIndex = 0;
+              while (titleIndex < lines.length) {
+                const l = lines[titleIndex].toLowerCase();
+                if (l.includes('wensmatch') || l.includes('passend') || l.includes('nieuw') || l.includes('situatiepunten')) {
+                    titleIndex++;
+                } else {
+                    break;
+                }
+              }
+              const title = lines[titleIndex] || '';
+
+              // Location
+              const location = lines.find(l => (l.includes(',') && !l.includes('€') && !l.match(/\d{2}-\d{2}/))) || '';
+
+              // Price
+              const priceMatch = text.match(/€\s*[\d.]+(?:,\d{2})?/);
+              const price = priceMatch ? priceMatch[0] : '';
+              
+              // End date
+              const dateMatch = text.match(/(\d{2}-\d{2}-\d{4},\s*\d{2}:\d{2})/);
+              const endDate = dateMatch ? dateMatch[1] : '';
+
+              // Specs
+              const specsMatch = text.match(/(\d+\s*Kamers\s*\|\s*\d+m²\s*\|\s*[a-zA-Z]+)/i);
+              let specs = '';
+              if (specsMatch) {
+                  specs = specsMatch[1] || '';
+              } else {
+                  const lineWithSpecs = lines.find(l => l.includes('m²'));
+                  specs = lineWithSpecs || '';
+              }
+
+              // Extract image
+              const img = item.locator('img').first();
+              let imageUrl = '';
+              if (await img.count() > 0) {
+                imageUrl = await img.getAttribute('src') || '';
+              }
+
+              tabData.push({ 
+                publicatieId, 
+                position, 
+                totalCandidates, 
+                title, 
+                location, 
+                price, 
+                endDate, 
+                specs, 
+                imageUrl, 
+                rawText: text 
+              });
             }
           }
         }
