@@ -67,12 +67,25 @@ export default async function DashboardPage() {
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-zinc-300">Available & Active Apartments</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {apartments.filter((a: any) => a.status === 'AVAILABLE' || activeApps.some((app: any) => app.id === a.id)).length === 0 ? (
-              <div className="col-span-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                No active apartments found yet.
-              </div>
-            ) : (
-              apartments.filter((a: any) => a.status === 'AVAILABLE' || activeApps.some((app: any) => app.id === a.id)).map((apt: any) => {
+            {(() => {
+              const displayedApartments = apartments.filter((a: any) => a.status === 'AVAILABLE' || activeApps.some((app: any) => app.id === a.id));
+              
+              // Sort so applied apartments are at the top
+              displayedApartments.sort((a: any, b: any) => {
+                const isAppliedA = activeApps.some((app: any) => app.id === a.id) ? 1 : 0;
+                const isAppliedB = activeApps.some((app: any) => app.id === b.id) ? 1 : 0;
+                return isAppliedB - isAppliedA;
+              });
+
+              if (displayedApartments.length === 0) {
+                return (
+                  <div className="col-span-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
+                    No active apartments found yet.
+                  </div>
+                );
+              }
+
+              return displayedApartments.map((apt: any) => {
                 const isApplied = activeApps.some((app: any) => app.id === apt.id);
                 return (
                   <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className={`block bg-zinc-900 border ${isApplied ? 'border-emerald-500/50' : 'border-zinc-800'} rounded-xl overflow-hidden hover:bg-zinc-800/80 transition-all group flex flex-col sm:flex-row relative`}>
@@ -127,8 +140,8 @@ export default async function DashboardPage() {
                     </div>
                   </a>
                 );
-              })
-            )}
+              });
+            })()}
           </div>
         </section>
 
