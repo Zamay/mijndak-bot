@@ -63,55 +63,76 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Active Applications */}
-          <section className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              Active Applications
-            </h2>
-            <div className="space-y-3">
-              {activeApps.length === 0 ? (
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                  No active applications right now.
-                </div>
-              ) : (
-                activeApps.map((app: any) => (
-                  <div key={app.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <a href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${app.id}`} target="_blank" rel="noreferrer" className="text-lg font-medium text-white hover:text-emerald-400 transition-colors">
-                        {app.apartment?.address || `Property #${app.id}`}
-                      </a>
-                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {app.status}
-                      </span>
-                    </div>
-                    {app.apartment && (
-                      <div className="text-sm text-zinc-400 mb-4 flex items-center gap-3">
-                        {app.apartment.type && <span>📍 {app.apartment.type}</span>}
-                        {app.apartment.price && <span>💶 {app.apartment.price}</span>}
+        {/* Active Market (Available) */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold text-zinc-300">Available Apartments</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {apartments.filter((a: any) => a.status === 'AVAILABLE').length === 0 ? (
+              <div className="col-span-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
+                No active apartments found yet.
+              </div>
+            ) : (
+              apartments.filter((a: any) => a.status === 'AVAILABLE').map((apt: any) => {
+                const isApplied = activeApps.some((app: any) => app.id === apt.id);
+                return (
+                  <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className={`block bg-zinc-900 border ${isApplied ? 'border-emerald-500/50' : 'border-zinc-800'} rounded-xl overflow-hidden hover:bg-zinc-800/80 transition-all group flex flex-col sm:flex-row relative`}>
+                    
+                    {/* APPLIED Badge */}
+                    {isApplied && (
+                      <div className="absolute top-3 right-3 z-10 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase shadow-lg backdrop-blur-md">
+                        Applied
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                      <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800/50">
-                        <div className="text-xs text-zinc-500 mb-1">Queue Position</div>
-                        <div className="text-xl font-semibold text-white">
-                          {app.position === 999 ? '?' : app.position} <span className="text-sm text-zinc-500 font-normal">/ {app.totalCandidates === 999 ? '?' : app.totalCandidates}</span>
-                        </div>
+
+                    {/* Image */}
+                    <div className="sm:w-1/3 h-48 sm:h-auto bg-zinc-800 relative flex-shrink-0">
+                      {apt.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={apt.imageUrl} alt={apt.address} className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-zinc-600 text-3xl">🏠</div>
+                      )}
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className={`text-lg font-bold pr-16 line-clamp-1 transition-colors ${isApplied ? 'text-emerald-400 group-hover:text-emerald-300' : 'text-blue-400 group-hover:text-blue-300'}`}>
+                          {apt.address || `#${apt.id}`}
+                        </h3>
+                        <p className="text-sm text-zinc-400 mt-1">{apt.type}</p>
+                        
+                        {apt.specs && (
+                          <p className="text-sm text-zinc-500 mt-3 font-medium">
+                            {apt.specs.replace(/\|/g, ' • ')}
+                          </p>
+                        )}
                       </div>
-                      <div className="bg-zinc-950 rounded-lg p-3 border border-zinc-800/50">
-                        <div className="text-xs text-zinc-500 mb-1">Last Updated</div>
-                        <div className="text-sm font-medium text-zinc-300">
-                          {new Date(app.updatedAt).toLocaleTimeString()}
+                      
+                      <div className="mt-4 flex items-end justify-between">
+                        <div>
+                          <div className="font-bold text-lg text-zinc-200">{apt.price || 'Prijs onbekend'}</div>
+                          {apt.position && (
+                            <div className="text-sm text-blue-400 mt-1">
+                              Jouw voorlopige positie: <span className="font-medium">{apt.position} / {apt.totalCandidates}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Reageer tot</div>
+                          <div className="text-sm text-zinc-300">{apt.endDate || 'Unknown'}</div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+                  </a>
+                );
+              })
+            )}
+          </div>
+        </section>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-zinc-800">
           {/* Past/Cancelled Applications */}
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-zinc-300">Application History</h2>
@@ -121,7 +142,7 @@ export default async function DashboardPage() {
                   No history yet.
                 </div>
               ) : (
-                pastApps.slice(0, 5).map((app: any) => {
+                pastApps.slice(0, 10).map((app: any) => {
                   const apt = apartments.find(a => a.id === app.id);
                   return (
                     <div key={app.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4 flex items-center justify-between">
@@ -142,87 +163,32 @@ export default async function DashboardPage() {
               )}
             </div>
           </section>
-        </div>
 
-        {/* Active Market (Available) */}
-        <section className="space-y-4 pt-4 border-t border-zinc-800">
-          <h2 className="text-xl font-semibold text-zinc-300">Available Apartments</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {apartments.filter((a: any) => a.status === 'AVAILABLE').length === 0 ? (
-              <div className="col-span-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                No active apartments found yet.
-              </div>
-            ) : (
-              apartments.filter((a: any) => a.status === 'AVAILABLE').map((apt: any) => (
-                <a key={apt.id} href={`https://amsterdam.mijndak.nl/HuisDetails?PublicatieId=${apt.id}`} target="_blank" rel="noreferrer" className="block bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:bg-zinc-800/80 transition-all group flex flex-col sm:flex-row">
-                  {/* Image */}
-                  <div className="sm:w-1/3 h-48 sm:h-auto bg-zinc-800 relative flex-shrink-0">
-                    {apt.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={apt.imageUrl} alt={apt.address} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-zinc-600 text-3xl">🏠</div>
-                    )}
-                  </div>
-                  
-                  {/* Content */}
-                  <div className="p-5 flex-1 flex flex-col justify-between">
+          {/* Unavailable/Historical Apartments */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold text-zinc-300">Expired / Unavailable</h2>
+            <details className="group bg-zinc-900/30 border border-zinc-800/50 rounded-2xl">
+              <summary className="cursor-pointer text-zinc-400 hover:text-zinc-300 p-4 transition-colors font-medium flex items-center justify-between outline-none">
+                <span>View Expired Apartments ({apartments.filter((a: any) => a.status !== 'AVAILABLE').length})</span>
+                <span className="group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div className="p-4 border-t border-zinc-800/50 max-h-[400px] overflow-y-auto space-y-3">
+                {apartments.filter((a: any) => a.status !== 'AVAILABLE').map((apt: any) => (
+                  <div key={apt.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-4 opacity-70 flex flex-col justify-between">
                     <div>
-                      <h3 className="text-lg font-bold text-blue-400 group-hover:text-blue-300 transition-colors line-clamp-1">{apt.address || `#${apt.id}`}</h3>
-                      <p className="text-sm text-zinc-400 mt-1">{apt.type}</p>
-                      
-                      {apt.specs && (
-                        <p className="text-sm text-zinc-500 mt-3 font-medium">
-                          {apt.specs.replace(/\|/g, ' • ')}
-                        </p>
-                      )}
+                      <div className="text-sm font-bold text-zinc-300 line-clamp-1">{apt.address || `#${apt.id}`}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{apt.type}</div>
                     </div>
-                    
-                    <div className="mt-4 flex items-end justify-between">
-                      <div>
-                        <div className="font-bold text-lg text-zinc-200">{apt.price || 'Prijs onbekend'}</div>
-                        {apt.position && (
-                          <div className="text-sm text-blue-400 mt-1">
-                            Jouw voorlopige positie: <span className="font-medium">{apt.position} / {apt.totalCandidates}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Reageer tot</div>
-                        <div className="text-sm text-zinc-300">{apt.endDate || 'Unknown'}</div>
-                      </div>
+                    <div className="mt-3 flex justify-between items-end">
+                       <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">Expired</span>
+                       {apt.position && <span className="text-xs text-zinc-500">Rank: {apt.position}/{apt.totalCandidates}</span>}
                     </div>
                   </div>
-                </a>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Unavailable/Historical Apartments */}
-        <section className="pt-8">
-          <details className="group">
-            <summary className="cursor-pointer text-zinc-500 hover:text-zinc-400 transition-colors font-medium flex items-center gap-2 outline-none">
-              <span className="group-open:rotate-90 transition-transform">▶</span>
-              Show Expired/Unavailable Apartments ({apartments.filter((a: any) => a.status !== 'AVAILABLE').length})
-            </summary>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {apartments.filter((a: any) => a.status !== 'AVAILABLE').map((apt: any) => (
-                <div key={apt.id} className="bg-zinc-900/30 border border-zinc-800/50 rounded-xl p-4 opacity-60 grayscale flex flex-col justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-zinc-300 line-clamp-1">{apt.address || `#${apt.id}`}</div>
-                    <div className="text-xs text-zinc-500 mt-1">{apt.type}</div>
-                  </div>
-                  <div className="mt-3 flex justify-between items-end">
-                     <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400">Expired</span>
-                     {apt.position && <span className="text-xs text-zinc-500">Rank: {apt.position}/{apt.totalCandidates}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        </section>
+                ))}
+              </div>
+            </details>
+          </section>
+        </div>
       </div>
     </div>
   );
