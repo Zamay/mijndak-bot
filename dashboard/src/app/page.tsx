@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   }
 
   // Fetch data
-  const apartmentsSnapshot = await db.collection('apartments').orderBy('discoveryTime', 'desc').limit(20).get();
+  const apartmentsSnapshot = await db.collection('apartments').orderBy('discoveryTime', 'desc').limit(100).get();
   const applicationsSnapshot = await db.collection('applications').orderBy('updatedAt', 'desc').get();
 
   const apartments: any[] = apartmentsSnapshot.docs.map(doc => ({
