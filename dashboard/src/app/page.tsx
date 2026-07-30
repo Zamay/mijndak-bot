@@ -1,6 +1,8 @@
 import { db } from '../lib/firebase';
 import React from 'react';
 
+import CountdownTimer from '../components/CountdownTimer';
+
 export const revalidate = 60; // Revalidate every 60 seconds
 
 export default async function DashboardPage() {
@@ -21,11 +23,17 @@ export default async function DashboardPage() {
   const apartmentsSnapshot = await db.collection('apartments').orderBy('discoveryTime', 'desc').limit(100).get();
   const applicationsSnapshot = await db.collection('applications').orderBy('updatedAt', 'desc').get();
 
-  const apartments: any[] = apartmentsSnapshot.docs.map(doc => ({
+  let apartments: any[] = apartmentsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     discoveryTime: doc.data().discoveryTime?.toDate()?.toISOString() || new Date().toISOString()
   }));
+  
+  // Filter for Amsterdam only (to hide extraneous results)
+  apartments = apartments.filter(a => {
+    const isAmsterdam = (a.address?.toLowerCase().includes('amsterdam') || a.type?.toLowerCase().includes('amsterdam'));
+    return isAmsterdam;
+  });
 
   const applications: any[] = applicationsSnapshot.docs.map(doc => ({
     id: doc.id,
@@ -49,7 +57,7 @@ export default async function DashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
               MijnDak Dashboard
             </h1>
-            <p className="text-zinc-400 mt-1">Autonomous Housing Assistant</p>
+            <p className="text-zinc-400 mt-1">Autonomous Housing Assistant (Amsterdam Only)</p>
           </div>
           <div className="flex gap-4">
             <div className="bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800 flex flex-col items-center">
@@ -134,7 +142,9 @@ export default async function DashboardPage() {
                         
                         <div className="text-right">
                           <div className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Reageer tot</div>
-                          <div className="text-sm text-zinc-300">{apt.endDate || 'Unknown'}</div>
+                          <div className="text-sm text-zinc-300">
+                            {apt.endDate ? <CountdownTimer endDateStr={apt.endDate} /> : 'Unknown'}
+                          </div>
                         </div>
                       </div>
                     </div>

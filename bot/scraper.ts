@@ -142,6 +142,11 @@ export class MijnDakScraper {
       // Location is usually the line with city + neighborhood (e.g. Amsterdam, Noord)
       const location = lines.find(l => (l.includes(',') && !l.includes('€') && !l.match(/\d{2}-\d{2}/))) || '';
       
+      // We only want to track and apply to apartments in Amsterdam
+      if (!location.toLowerCase().includes('amsterdam') && !title.toLowerCase().includes('amsterdam')) {
+         continue; // skip
+      }
+      
       // Price
       const priceMatch = text.match(/€\s*[\d.]+(?:,\d{2})?/);
       const price = priceMatch ? priceMatch[0] : '';
